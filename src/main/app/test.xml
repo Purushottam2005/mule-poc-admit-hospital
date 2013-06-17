@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:data-mapper="http://www.mulesoft.org/schema/mule/ee/data-mapper" xmlns:sfdc="http://www.mulesoft.org/schema/mule/sfdc" xmlns:vm="http://www.mulesoft.org/schema/mule/vm" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:spring="http://www.springframework.org/schema/beans" version="EE-3.4.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="
+http://www.mulesoft.org/schema/mule/vm http://www.mulesoft.org/schema/mule/vm/current/mule-vm.xsd 
+http://www.mulesoft.org/schema/mule/ee/data-mapper http://www.mulesoft.org/schema/mule/ee/data-mapper/current/mule-data-mapper.xsd 
+http://www.mulesoft.org/schema/mule/sfdc http://www.mulesoft.org/schema/mule/sfdc/5.0/mule-sfdc.xsd 
+http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-current.xsd 
+http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd ">
+    <sfdc:config name="Salesforce2" username="cloveruser@medctr.ucsf.edu" password="demoClover1" securityToken="eMLbAJkCIoBRn1Bk5GzHTIFl" url="https://test.salesforce.com/services/Soap/u/26.0" doc:name="Salesforce">
+        <sfdc:connection-pooling-profile initialisationPolicy="INITIALISE_ONE" exhaustedAction="WHEN_EXHAUSTED_GROW"/>
+    </sfdc:config>
+    <data-mapper:config name="xml2sf_grf" transformationGraphPath="xml2sf.grf" doc:name="xml2sf_grf"/>
+    <flow name="testFlow1" doc:name="testFlow1">
+        <vm:inbound-endpoint exchange-pattern="one-way" path="queue-record" doc:name="VM"/>
+        <data-mapper:transform config-ref="xml2sf_grf" doc:name="DataMapper"/>
+        <sfdc:create config-ref="Salesforce2" doc:name="Salesforce" type="Master_Patient__c"> 
+            <sfdc:objects ref="#[payload]"/>
+        </sfdc:create>
+    </flow>
+</mule>

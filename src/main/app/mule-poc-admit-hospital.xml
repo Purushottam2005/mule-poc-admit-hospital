@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:scripting="http://www.mulesoft.org/schema/mule/scripting" xmlns:tcp="http://www.mulesoft.org/schema/mule/tcp" xmlns:smtp="http://www.mulesoft.org/schema/mule/smtp"
+	xmlns:data-mapper="http://www.mulesoft.org/schema/mule/ee/data-mapper" xmlns:sfdc="http://www.mulesoft.org/schema/mule/sfdc" xmlns:hl7="http://www.mulesoft.org/schema/mule/hl7" xmlns:file="http://www.mulesoft.org/schema/mule/file" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:spring="http://www.springframework.org/schema/beans" version="EE-3.4.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/hl7 http://www.mulesoft.org/schema/mule/hl7/current/mule-hl7.xsd
+http://www.mulesoft.org/schema/mule/tcp http://www.mulesoft.org/schema/mule/tcp/current/mule-tcp.xsd
+http://www.mulesoft.org/schema/mule/file http://www.mulesoft.org/schema/mule/file/current/mule-file.xsd
+http://www.mulesoft.org/schema/mule/ee/data-mapper http://www.mulesoft.org/schema/mule/ee/data-mapper/current/mule-data-mapper.xsd
+http://www.mulesoft.org/schema/mule/sfdc http://www.mulesoft.org/schema/mule/sfdc/5.0/mule-sfdc.xsd
+http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-current.xsd
+http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/scripting http://www.mulesoft.org/schema/mule/scripting/current/mule-scripting.xsd
+http://www.mulesoft.org/schema/mule/smtp http://www.mulesoft.org/schema/mule/smtp/current/mule-smtp.xsd">
+    <sfdc:config name="UC_SF_Connection" username="cloveruser@medctr.ucsf.edu" password="demoClover1" securityToken="eMLbAJkCIoBRn1Bk5GzHTIFl" url="https://test.salesforce.com/services/Soap/u/26.0" doc:name="Salesforce">
+        <sfdc:connection-pooling-profile initialisationPolicy="INITIALISE_ONE" exhaustedAction="WHEN_EXHAUSTED_GROW"/>
+    </sfdc:config>
+    <data-mapper:config name="xm_a01_2_4_grf" transformationGraphPath="xm-a01-2.4.grf" doc:name="DataMapper"/>
+    <data-mapper:config name="a01xml_masterpatient_grf" transformationGraphPath="a01xml-masterpatient.grf" doc:name="DataMapper"/>
+    <data-mapper:config name="a01xml2pv1_grf" transformationGraphPath="a01xml2pv1.grf" doc:name="DataMapper"/>
+    <catch-exception-strategy name="Global_Catch_Exception_Strategy">
+        <flow-ref name="defaultErrorHandler" doc:name="Invoke Default Error Handler"/>
+        <logger message="Exception Strategy - printing pId #[pId]" level="INFO" doc:name="Logger"/>
+        <choice doc:name="Choice">
+            <when expression="#[groovy:pId != null]">
+                <logger message="&quot;ERROR Handler Patient Id = &quot; + #[pId]" level="INFO" doc:name="Logger"/>
+                <set-payload value="#[pId]" doc:name="Set Payload"/>
+                <flow-ref name="rollBackPatient" doc:name="Flow Reference"/>
+            </when>
+            <otherwise>
+                <logger message="&quot;No Rollback Patient Does not Exist&quot;" level="INFO" doc:name="Logger"/>
+            </otherwise>
+        </choice>
+    </catch-exception-strategy>
+    <data-mapper:config name="a01map2map_grf" transformationGraphPath="a01map2map.grf" doc:name="DataMapper"/>
+    <flow name="mule-poc-mainFlow" doc:name="mule-poc-mainFlow">
+        <tcp:inbound-endpoint exchange-pattern="request-response" host="localhost" port="9001" responseTimeout="10000" doc:name="Receive HL7 message"/>
+        <byte-array-to-string-transformer doc:name="Byte Array to String"/>
+        <logger message="#[payload]" level="INFO" doc:name="Log Trinet"/>
+        <hl7:er7-to-xml-transformer doc:name="ER7-encoded HL7 String to XML"/>
+        <logger message="#[payload]" level="INFO" doc:name="Log XML Output NEW"/>
+        <enricher source="#[payload]" target="#[variable:patientId]" doc:name="Enrich Message with PatientId">
+            <flow-ref name="mule-poc-insert-patient" doc:name="Insert Patient Flow"/>
+        </enricher>
+        <set-session-variable variableName="pId" value="#[patientId]" doc:name="Set Patient Id"/>
+        <logger message="After Enricher - #[pId]" level="INFO" doc:name="Logger"/>
+        <enricher source="#[payload]" target="#[variable:patientVisitId]" doc:name="Enrich Message with PatientVisitId">
+            <flow-ref name="mule-poc-insert-patientVisit" doc:name="Insert Patient Visit Flow"/>
+        </enricher>
+        <logger message="Print Patient Visit Id = #[patientVisitId]" level="INFO" doc:name="Print before Response"/>
+        <choice doc:name="Choice">
+            <when expression="#[flowVars['patientVisitId'] instanceof NullPayload]">
+                <logger message="In Null Visit Choice = #[payload]" level="INFO" doc:name="Logger"/>
+                <set-payload value="#[pId]" doc:name="Set Back Patient Id"/>
+                <flow-ref name="rollBackPatient" doc:name="Roll Back Master on Visit Failure"/>
+                <set-payload value="&quot;Failed&quot;" doc:name="Set Payload"/>
+            </when>
+            <otherwise>
+                <set-payload value="&quot;Success&quot;" doc:name="Set Payload"/>
+            </otherwise>
+        </choice>
+        <byte-array-to-string-transformer doc:name="Byte Array to String"/>
+        <logger level="INFO" doc:name="Logger"/>
+        <exception-strategy ref="Global_Catch_Exception_Strategy" doc:name="Reference Exception Strategy"/>
+    </flow>
+    <sub-flow name="mule-poc-insert-patient" doc:name="mule-poc-insert-patient">
+        <byte-array-to-string-transformer doc:name="Byte Array to String"/>
+        <data-mapper:transform config-ref="a01xml_masterpatient_grf" doc:name="Transform A01 to MasterPatient"/>
+        <logger message="&quot;After DM payload Log MRN &quot; + #[payload[0].MRN_Number__c]" level="INFO" doc:name="Log MRN"/>
+        <set-variable variableName="payloadVar" value="#[payload]" doc:name="Set Variable"/>
+        <enricher doc:name="Enrich Message with PatientId">
+            <processor-chain doc:name="Enricher Processing">
+                <sfdc:query config-ref="UC_SF_Connection" query="SELECT mp.Id FROM Master_Patient__c mp WHERE mp.MRN_Number__c='#[payload[0].MRN_Number__c]'" doc:name="Lookup Patient"/>
+                <choice xmlns="http://www.mulesoft.org/schema/mule/core" doc:name="Choice">
+                    <when expression="#[groovy:payload.size() == 0]">
+                        <sfdc:create config-ref="UC_SF_Connection" type="Master_Patient__c" doc:name="Insert Patient">
+                            <sfdc:objects ref="#[flowVars['payloadVar']]"/>
+                        </sfdc:create>
+                        <set-payload value="#[payload[0].Id]" doc:name="Set Payload"/>
+                    </when>
+                    <otherwise>
+                        <set-payload value="#[payload[0].Id]" doc:name="Set Payload"/>
+                    </otherwise>
+                </choice>
+            </processor-chain>
+            <enrich source="#[payload]" target="#[flowVars['pId']]"/>
+        </enricher>
+        <set-payload value="#[flowVars['pId']]" doc:name="Set Return Payload"/>
+        <logger message="&quot;log SFDC Final Return payload&quot; + #[payload]" level="INFO" doc:name="SFDC Lookup Output"/>
+    </sub-flow>
+    <sub-flow name="mule-poc-insert-patientVisit" doc:name="mule-poc-insert-patientVisit">
+        <byte-array-to-string-transformer doc:name="Byte Array to String"/>
+        <logger message="Log In PatientVisit Flow - #[pId]" level="INFO" doc:name="Log SF Payload"/>
+        <data-mapper:transform config-ref="a01xml2pv1_grf" doc:name="Transform A01 to Patient Visit">
+            <data-mapper:input-arguments>
+                <data-mapper:input-argument key="PatientIdentifier">#[pId]</data-mapper:input-argument>
+            </data-mapper:input-arguments>
+        </data-mapper:transform>
+        <logger message="&quot;After DM Log PatientVisit Payload&quot; + #[payload]" level="INFO" doc:name="Logger"/>
+        <sfdc:create config-ref="UC_SF_Connection" type="Patient_Visit__c" doc:name="Insert Patient Visit">
+            <sfdc:objects ref="#[payload]"/>
+        </sfdc:create>
+        <logger message="Subflow Patient Visit + #[payload]" level="INFO" doc:name="Logger"/>
+        <set-payload value="#[payload[0].id]" doc:name="Set Payload"/>
+    </sub-flow>
+    <sub-flow name="defaultErrorHandler" doc:name="defaultErrorHandler">
+        <logger message="Error occurred: #[payload]" level="INFO" doc:name="Log Error"/>
+    </sub-flow>
+    <sub-flow name="rollBackPatient" doc:name="rollBackPatient">
+        <logger message="In Rollback Process - #[payload]" level="INFO" doc:name="Logger"/>
+        <expression-component doc:name="Expression"><![CDATA[
+        	java.util.ArrayList theList = new java.util.ArrayList();
+        	theList.add(payload);
+        	payload = theList;
+        ]]></expression-component>
+        <logger message="Payload After Expression = #[payload]" level="INFO" doc:name="Logger"/>
+        <sfdc:delete config-ref="UC_SF_Connection" doc:name="Delete Patient">
+            <sfdc:ids ref="#[payload]"/>
+        </sfdc:delete>
+        <logger message="After deletion = #[payload]" level="INFO" doc:name="Logger"/>
+    </sub-flow>
+    <flow name="testflow" doc:name="testflow">
+        <file:inbound-endpoint path="/Users/Shuba/Documents/Test/HL7Test" responseTimeout="10000" doc:name="Read File"/>
+        <byte-array-to-string-transformer doc:name="Byte Array to String"/>
+        <tcp:outbound-endpoint exchange-pattern="request-response" host="localhost" port="9001" responseTimeout="10000" doc:name="Post to Main Flow"/>
+        <byte-array-to-string-transformer doc:name="Byte Array to String"/>
+        <logger message="Outcome of HL7 Processing = #[payload]" level="INFO" doc:name="Logger"/>
+    </flow>
+</mule>

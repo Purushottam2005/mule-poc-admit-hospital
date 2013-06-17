@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<mule-configuration xmlns="http://www.mulesoft.com/tooling/messageflow" name="test">
+    <global-element type="http://www.mulesoft.org/schema/mule/sfdc/config" name="Salesforce" entity-id="Salesforce#1">
+        <properties>
+            <property name="proxyUsername"/>
+            <property value="eMLbAJkCIoBRn1Bk5GzHTIFl" name="securityToken"/>
+            <property name="proxyHost"/>
+            <property value="true" name="auxiliary;metauseMetaData"/>
+            <property name="allowFieldTruncationSupport"/>
+            <property name="assignmentRuleId"/>
+            <property name="proxyPort"/>
+            <property value="demoClover1" name="password"/>
+            <property value="https://test.salesforce.com/services/Soap/u/26.0" name="url"/>
+            <property name="clientId"/>
+            <property value="cloveruser@medctr.ucsf.edu" name="username"/>
+            <property name="useDefaultRule"/>
+            <property value="Salesforce2" name="name"/>
+            <property name="timeObjectStore-ref"/>
+            <property value="1" name="auxiliary;index"/>
+            <property name="proxyPassword"/>
+            <property-collection name="@http://www.mulesoft.org/schema/mule/sfdc/connection-pooling-profile;0">
+                <property value="WHEN_EXHAUSTED_GROW" name="exhaustedAction"/>
+                <property value="2" name="auxiliary;index"/>
+                <property value="2" name="auxiliary;wrapIn"/>
+                <property value="INITIALISE_ONE" name="initialisationPolicy"/>
+            </property-collection>
+        </properties>
+    </global-element>
+    <global-element type="http://www.mulesoft.org/schema/mule/ee/data-mapper/config" name="xml2sf_grf" entity-id="!!!12a75648-2bdf-4e9b-b6db-ad10a152ca19">
+        <properties>
+            <property value="" name="doc:description"/>
+            <property value="xml2sf_grf" name="name"/>
+            <property value="xml2sf_grf" name="doc:name"/>
+            <property value="xml2sf.grf" name="transformationGraphPath"/>
+        </properties>
+    </global-element>
+    <flow SubFlow="false" name="testFlow1" entity-id="8951d725-ef6c-461f-ab8d-2f5d5e5dcd86">
+        <properties>
+            <property name="processingStrategy"/>
+            <property name="processingStrategy2"/>
+            <property name="bussinessEventsLabel"/>
+            <property name="tracking:enable-default-events"/>
+            <property value="3" name="auxiliary;index"/>
+        </properties>
+        <lane isChoiceOtherwiseLane="false" index="0" hadOnlyOneElement="false" entity-id="compartment-lane#1">
+            <graphicalData height="0" width="0" y="0" x="0"/>
+            <endpoint message-exchange-pattern="OneWay" direction="Inbound" type="http://www.mulesoft.org/schema/mule/vm/endpoint" name="VM" entity-id="VM#1">
+                <graphicalData height="67" width="68" y="263" x="19"/>
+                <properties>
+                    <property name="businessEventsLabel"/>
+                    <property name="disableTransportTransformer"/>
+                    <property value="one-way" name="exchange-pattern"/>
+                    <property name="tracking:enable-default-events"/>
+                    <property name="ref"/>
+                    <property name="transformer-refs"/>
+                    <property name="address"/>
+                    <property value="queue-record" name="path"/>
+                    <property name="encoding"/>
+                    <property name="responseTransformer-refs"/>
+                    <property value="4" name="auxiliary;index"/>
+                    <property name="responseTimeout"/>
+                    <property name="mimeType"/>
+                    <property name="connector-ref"/>
+                </properties>
+            </endpoint>
+            <pattern type="http://www.mulesoft.org/schema/mule/ee/data-mapper/data-mapper-connector" name="DataMapper" entity-id="7e5cdfca-5d74-4e40-a123-b449bb121649">
+                <graphicalData height="0" width="0" y="0" x="0"/>
+                <properties>
+                    <property value="xml2sf_grf" name="config-ref"/>
+                </properties>
+            </pattern>
+            <pattern type="http://www.mulesoft.org/schema/mule/sfdc/sfdc-connector" name="Salesforce" entity-id="Salesforce#2">
+                <graphicalData height="67" width="68" y="263" x="147"/>
+                <properties>
+                    <property value="" name=""/>
+                    <property value="" name="proxyUsername"/>
+                    <property value="" name="securityToken"/>
+                    <property value="" name="proxyHost"/>
+                    <property value="http://www.mulesoft.org/schema/mule/sfdc/create" name="org.mule.tooling.ui.modules.core.widgets.meta.ModeAttribute"/>
+                    <property value="80" name="proxyPort"/>
+                    <property value="Master_Patient__c" name="type"/>
+                    <property value="" name="password"/>
+                    <property value="" name="url"/>
+                    <property value="#[payload]" name="ref"/>
+                    <property value="" name="username"/>
+                    <property name="updated"/>
+                    <property value="" name="accessTokenId"/>
+                    <property value="Salesforce2" name="config-ref"/>
+                    <property value="5" name="auxiliary;index"/>
+                    <property value="" name="proxyPassword"/>
+                    <property-collection name="@http://www.mulesoft.org/schema/mule/sfdc/create-objectss;1">
+                        <property value="#[payload]" name="ref"/>
+                        <property value="6" name="auxiliary;index"/>
+                    </property-collection>
+                </properties>
+                <description></description>
+            </pattern>
+        </lane>
+    </flow>
+    <description></description>
+</mule-configuration>
