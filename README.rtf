@@ -8,13 +8,19 @@
 \f0\fs24 \cf0 \
 Overview: The project includes parsing of HL7 ADT01 message and inserting the patient and patient visit information in Salesforce.com.\
 \
+Setup:\
+\pard\pardeftab720
+\cf0 Modify the read file connector from - /Users/Shuba/Documents/Test/HL7Test to location on your folder\
+Change the Salesforce connector parameters to local Salesforce dev organization.\
+Create two custom objects Patient and PatientVisit.\
+\pard\pardeftab720
+\cf0 \
+\
 Service Flow:\
 mule-poc-mainflow\
 mule-poc-rollback-patient\
 \
 Client Flow:\
-\
-Modify the read file connector from - /Users/Shuba/Documents/Test/HL7Test to location on your folder\
 \
 *The client flow that invokes a service based on file trigger. Therefore to trigger the client copy the src/test/resources/sampleA01.hl7l from src/test/resources to src/test files.\
 \
